@@ -11,7 +11,7 @@
 
 <!-- PWA Manifest Link -->
 <link rel="manifest" id="pwa-manifest">
-
+<link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lora:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -460,22 +460,6 @@ h1, h2, h3, .serif-font {
 
 <script>
 /* ── PWA SERVICE WORKER SETUP ── */
-const manifestData = {
-  "name": "QuickShop",
-  "short_name": "QuickShop",
-  "start_url": "./",
-  "display": "standalone",
-  "background_color": "#f9f6f0",
-  "theme_color": "#c34b32",
-  "icons": [
-    {
-      "src": "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%23285b43%22/><text y=%22.9em%22 font-size=%2280%22 x=%2210%22>🛍️</text></svg>",
-      "sizes": "192x192 512x512",
-      "type": "image/svg+xml"
-    }
-  ]
-};
-document.getElementById('pwa-manifest').setAttribute('href', 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifestData)));
 
 if ('serviceWorker' in navigator) {
   const swCode = `
