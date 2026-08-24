@@ -1,27 +1,21 @@
 {
-  "name": "Quick Shop",
-  "short_name": "Quick Shop",
-  "description": "Lookup, add, and manage invoices with real-time sync.",
+  "name": "QuickShop",
+  "short_name": "QuickShop",
+  "description": "Your Daily Market List & Price Tracker",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#f1f5f9",
-  "theme_color": "#f1f5f9",
+  "background_color": "#f9f6f0",
+  "theme_color": "#c34b32",
   "icons": [
     {
-      "src": "icon.png",
+      "src": "icon-192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "icon.png",
+      "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
-    },
-    {
-      "src": "maskable-icon.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
     }
   ]
 }
