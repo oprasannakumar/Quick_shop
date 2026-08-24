@@ -342,13 +342,17 @@ h1, h2, h3, .serif-font {
 
         <!-- New Item Form -->
         <div class="form-card" id="addItemBox">
-          <div class="form-header">
-            <div>
-              <div class="form-header-sub">New Entry</div>
-              <h3>Create an item</h3>
-            </div>
-            <button class="ai-wand" onclick="suggestWithAI()" title="AI magic">✧</button>
-          </div>
+<div class="form-header">
+  <div>
+    <div class="form-header-sub">New Entry</div>
+    <h3>Create an item</h3>
+  </div>
+  <div style="display: flex; gap: 6px;">
+    <button class="ai-wand" onclick="suggestWithGemini()" title="Gemini AI">✨</button>
+    <button class="ai-wand" onclick="suggestWithGroq()" title="Groq AI">⚡</button>
+    <button class="ai-wand" onclick="suggestWithGoogleTranslate()" title="Google Translator">🌐</button>
+  </div>
+</div>
 
           <div class="field">
             <label>Primary Name</label>
@@ -934,14 +938,114 @@ function handleDealerKeys(e, boxId, input) {
   else if (e.key === 'Enter') { e.preventDefault(); input.value = items[dealerIdx[boxId] ?? 0].textContent; box.innerHTML = ''; }
 }
 
-async function suggestWithAI() {
+async function suggestWithGoogleTranslate() {
+  const primaryName = document.getElementById('newItemName').value.trim();
+  if (!primaryName) {
+    toast("Please enter a name first!");
+    return;
+  }
+
+  toast("Translating...");
+
+  try {
+    // Step 1: Transliterate English text (e.g., "Menthikura") into Telugu script ("మెంతికూర")
+    const transliterateUrl = `https://inputtools.google.com/request?text=${encodeURIComponent(primaryName)}&itc=te-t-i0-und&num=1&cp=0&cs=1&ie=utf-8&oe=utf-8`;
+    
+    const transResponse = await fetch(transliterateUrl);
+    const transData = await transResponse.json();
+    
+    let teluguText = primaryName;
+    if (transData && transData[0] === 'SUCCESS') {
+      teluguText = transData[1][0][1][0]; // This is the Telugu script version
+    }
+
+    // Step 2: Translate that Telugu script into English using Google Translate
+    const translateUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=te&tl=en&dt=t&q=${encodeURIComponent(teluguText)}`;
+    
+    const translateResponse = await fetch(translateUrl);
+    const translateData = await translateResponse.json();
+
+    if (translateData && translateData[0] && translateData[0][0] && translateData[0][0][0]) {
+      const englishTranslation = translateData[0][0][0];
+      
+      // Autofill the English / Alt Name field with the proper translation
+      document.getElementById('newAltName').value = englishTranslation;
+      toast("Translated successfully! 🌐");
+    } else {
+      toast("Translation not found.");
+    }
+  } catch (err) {
+    console.error(err);
+    toast("Network error during translation.");
+  }
+}
+async function suggestWithGemini() {
   const primaryName = document.getElementById('newItemName').value.trim();
   if (!primaryName) {
     toast("Please enter a primary name first!");
     return;
   }
 
-  // Check for saved Groq API key in localStorage, or prompt user if missing
+  // Check for saved Gemini API key or prompt user
+  let geminiApiKey = localStorage.getItem('gemini_api_key');
+  if (!geminiApiKey) {
+    geminiApiKey = prompt("Enter your Gemini API Key (saved locally for future use):");
+    if (!geminiApiKey) return;
+    localStorage.setItem('gemini_api_key', geminiApiKey.trim());
+  }
+
+  toast("Gemini is thinking... ✨");
+
+  const promptText = `You are a grocery assistant. Given the grocery item name "${primaryName}" (which might be typed in phonetic English/Telugu script), provide:
+1. An English or alternative common name.
+2. Choose strictly ONE category from this exact list: Produce, Dairy & Eggs, Meat & Seafood, Pantry & Spices, Snacks & Beverages, Household, Other.
+
+Respond ONLY in valid JSON format with this exact structure:
+{"altName": "...", "category": "..."}`;
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${geminiApiKey}`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: promptText }] }],
+        generationConfig: { responseMimeType: "application/json" }
+      })
+    });
+
+    const data = await response.json();
+    if (data.error) {
+      if (data.error.code === 400 || data.error.status === 'INVALID_ARGUMENT') {
+        localStorage.removeItem('gemini_api_key');
+      }
+      toast("Gemini Error: " + (data.error.message || "Request failed"));
+      return;
+    }
+
+    const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (resultText) {
+      const parsed = JSON.parse(resultText);
+      if (parsed.altName) document.getElementById('newAltName').value = parsed.altName;
+      if (parsed.category) setCategoryDropdown(parsed.category);
+      toast("Autofilled with Gemini! ✨");
+    } else {
+      toast("Gemini response failed.");
+    }
+  } catch (err) {
+    console.error(err);
+    toast("Network error connecting to Gemini.");
+  }
+}
+
+/* ── 2. GROQ AI BUTTON ── */
+async function suggestWithGroq() {
+  const primaryName = document.getElementById('newItemName').value.trim();
+  if (!primaryName) {
+    toast("Please enter a primary name first!");
+    return;
+  }
+
   let groqApiKey = localStorage.getItem('groq_api_key');
   if (!groqApiKey) {
     groqApiKey = prompt("Enter your Groq API Key (saved locally for future use):");
@@ -949,70 +1053,60 @@ async function suggestWithAI() {
     localStorage.setItem('groq_api_key', groqApiKey.trim());
   }
 
-  toast("AI is thinking... ✧");
-
-  const url = "https://api.groq.com/openai/v1/chat/completions";
+  toast("Groq is thinking... ⚡");
 
   const promptText = `You are a grocery assistant. Given the grocery item name "${primaryName}", provide:
-1. An English or alternative name (e.g. local name translated or common name). If it's already in English, provide a common synonym or leave it concise.
+1. An English or alternative common name.
 2. Choose strictly ONE category from this exact list: Produce, Dairy & Eggs, Meat & Seafood, Pantry & Spices, Snacks & Beverages, Household, Other.
 
 Respond ONLY in valid JSON format with this exact structure:
 {"altName": "...", "category": "..."}`;
 
   try {
-    const response = await fetch(url, {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${groqApiKey}`
       },
       body: JSON.stringify({
-        model: "openai/gpt-oss-20b", // Verified active Groq model ID
+        model: "openai/gpt-oss-20b",
         messages: [{ role: "user", content: promptText }],
         response_format: { type: "json_object" }
       })
     });
 
     const data = await response.json();
-
     if (data.error) {
-      console.error(data.error);
       if (data.error.code === 'invalid_api_key' || data.error.message?.includes('key')) {
-        localStorage.removeItem('groq_api_key'); // Clear bad key if invalid
+        localStorage.removeItem('groq_api_key');
       }
-      toast("API Error: " + (data.error.message || "Request failed"));
+      toast("Groq Error: " + (data.error.message || "Request failed"));
       return;
     }
 
     const resultText = data.choices?.[0]?.message?.content;
-    
     if (resultText) {
       const parsed = JSON.parse(resultText);
-      
-      // Autofill alternative name
-      if (parsed.altName) {
-        document.getElementById('newAltName').value = parsed.altName;
-      }
-      
-      // Autofill/Select category dropdown
-      if (parsed.category) {
-        const catSelect = document.getElementById('newItemCategory');
-        for (let option of catSelect.options) {
-          if (option.value.toLowerCase() === parsed.category.toLowerCase()) {
-            catSelect.value = option.value;
-            break;
-          }
-        }
-      }
-      
-      toast("Autofilled with AI! ✨");
+      if (parsed.altName) document.getElementById('newAltName').value = parsed.altName;
+      if (parsed.category) setCategoryDropdown(parsed.category);
+      toast("Autofilled with Groq! ⚡");
     } else {
-      toast("AI response failed.");
+      toast("Groq response failed.");
     }
   } catch (err) {
     console.error(err);
     toast("Network error connecting to Groq.");
+  }
+}
+/* Helper to map category strings to dropdown values */
+function setCategoryDropdown(catName) {
+  const catSelect = document.getElementById('newItemCategory');
+  for (let option of catSelect.options) {
+    if (option.value.toLowerCase() === catName.toLowerCase()) {
+      catSelect.value = option.value;
+      break;
+    }
   }
 }
 
