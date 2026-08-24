@@ -2144,64 +2144,69 @@
             tb.textContent = n;
         }
 
-        function renderBasket() {
-            const box = document.getElementById('basketItems');
-            const fBox = document.getElementById('cartFooterBox');
-            const count = Object.keys(cart).length;
-            updateBadge();
-            document.getElementById('cartTotalCount').textContent = count;
-            if (count === 0) {
-                box.innerHTML =
-                    `<p style="padding:40px 0; text-align:center; color:var(--text-muted); font-family:'Fredoka',cursive;">Your basket is empty.</p>`;
-                fBox.style.display = 'none';
-                return;
-            }
-            fBox.style.display = 'block';
-            box.innerHTML = '';
-            const groups = {};
-            Object.keys(cart).forEach(item => {
-                const gk = cart[item].custom ? "Custom" : (cartSortMode === 'store' ? (cart[item].dealer ||
-                    'Any Store') : getCategory(item));
-                if (!groups[gk]) groups[gk] = [];
-                groups[gk].push(item);
-            });
-            Object.keys(groups).sort().forEach(g => {
-                box.innerHTML += `<div class="group-lbl">${g}</div>`;
-                groups[g].sort().forEach(item => {
-                    const b = cart[item];
-                    const si = item.replace(/'/g, "\\'");
-                    box.innerHTML += `
-                            <div class="cart-item ${b.checked ? 'done' : ''}">
-                                <div class="check-ring" onclick="toggleCheck('${si}')">✓</div>
-                                <div class="ci-info">
-                                    <div class="ci-name">${parseName(item).primary} ${b.custom ? '<span class="custom-tag">CUSTOM</span>' : ''}</div>
-                                    ${b.price ? `<div class="ci-sub">${b.dealer} · ₹${b.price}</div>` : `<div class="ci-sub">${b.dealer}</div>`}
-                                </div>
-                                <div class="qty-ctrl">
-                                    <button class="qb" onclick="modifyQty('${si}',-1)">−</button>
-                                    <input type="number" class="qi" value="${b.qty}" step="0.05" onchange="updateQty('${si}',this.value)">
-                                    <button class="qb" onclick="modifyQty('${si}',1)">+</button>
-                                </div>
-                            </div>`;
-                });
-            });
-            localStorage.setItem('grocery_cart', JSON.stringify(cart));
-        }
+function renderBasket() {
+    const box = document.getElementById('basketItems');
+    const fBox = document.getElementById('cartFooterBox');
+    const count = Object.keys(cart).length;
+    updateBadge();
+    document.getElementById('cartTotalCount').textContent = count;
+    if (count === 0) {
+        box.innerHTML =
+            `<p style="padding:40px 0; text-align:center; color:var(--text-muted); font-family:'Fredoka',cursive;">Your basket is empty.</p>`;
+        fBox.style.display = 'none';
+        return;
+    }
+    fBox.style.display = 'block';
+    box.innerHTML = '';
+    const groups = {};
+    Object.keys(cart).forEach(item => {
+        const gk = cart[item].custom ? "Custom" : (cartSortMode === 'store' ? (cart[item].dealer ||
+            'Any Store') : getCategory(item));
+        if (!groups[gk]) groups[gk] = [];
+        groups[gk].push(item);
+    });
+    Object.keys(groups).sort().forEach(g => {
+        box.innerHTML += `<div class="group-lbl">${g}</div>`;
+        groups[g].sort().forEach(item => {
+            const b = cart[item];
+            const si = item.replace(/'/g, "\\'");
+            const unitLabel = b.unit ? ` · <b>${b.qty} ${b.unit}</b>` : '';
+            
+            box.innerHTML += `
+                    <div class="cart-item ${b.checked ? 'done' : ''}">
+                        <div class="check-ring" onclick="toggleCheck('${si}')">✓</div>
+                        <div class="ci-info">
+                            <div class="ci-name">${parseName(item).primary} ${b.custom ? '<span class="custom-tag">CUSTOM</span>' : ''}</div>
+                            ${b.price ? `<div class="ci-sub">${b.dealer} · ₹${b.price}${unitLabel}</div>` : `<div class="ci-sub">${b.dealer}${unitLabel}</div>`}
+                        </div>
+                        <div class="qty-ctrl">
+                            <button class="qb" onclick="modifyQty('${si}',-1)">−</button>
+                            <input type="number" class="qi" value="${b.qty}" step="0.05" onchange="updateQty('${si}',this.value)">
+                            <button class="qb" onclick="modifyQty('${si}',1)">+</button>
+                        </div>
+                    </div>`;
+        });
+    });
+    localStorage.setItem('grocery_cart', JSON.stringify(cart));
+}
 
-        async function sendToGoogleTasks() {
-            if (!navigator.onLine) {
-                toast("You're offline. Connect and try again.");
-                return;
-            }
-            const items = Object.keys(cart).map(i => ({ name: i, qty: cart[i].qty, dealer: cart[i].dealer || 'Any Store' }));
-            try {
-                await fetch(TASK_API_URL, { method: "POST", body: JSON.stringify({ listName: "Shopping List",
-                        items }) });
-                toast("Synced to Tasks ✨");
-            } catch (_) {
-                toast("Sync failed. Please try again.");
-            }
-        }
+async function sendToGoogleTasks() {
+    if (!navigator.onLine) {
+        toast("You're offline. Connect and try again.");
+        return;
+    }
+    const items = Object.keys(cart).map(i => ({ 
+        name: i, 
+        qty: cart[i].unit ? `${cart[i].qty} ${cart[i].unit}` : cart[i].qty, 
+        dealer: cart[i].dealer || 'Any Store' 
+    }));
+    try {
+        await fetch(TASK_API_URL, { method: "POST", body: JSON.stringify({ listName: "Shopping List", items }) });
+        toast("Synced to Tasks ✨");
+    } catch (_) {
+        toast("Sync failed. Please try again.");
+    }
+}
 
         /* ── DETAILS & SMOOTH TRANSITIONS ── */
         function selectItem(item) {
@@ -2530,6 +2535,98 @@
 
         function autoCategorizeCatalog() { toast("Catalog refreshed");
             fetchData(); }
+async function addCustomItem() {
+    const val = await showPrompt(
+        'Enter custom item name & quantity (e.g. "200 grams paneer", "500 ml milk", "1.5 kg sugar", "2 dozen eggs")',
+        '',
+        'e.g. 200g paneer',
+        'Add',
+        'Cancel',
+        '🧺',
+        'Custom Item'
+    );
+    if (!val) return;
+
+    let input = val.trim();
+    let qty = 1;
+    let unit = '';
+    let name = input;
+
+    // Matches numbers with optional or separated common grocery units
+    const unitPattern = '(?:kg|kgs|kilo|kilos|g|gm|gms|gram|grams|l|lt|ltr|liters|liter|litre|litres|ml|milli|milliliters|millilitres|lb|lbs|pound|pounds|oz|ounce|ounces|pcs|pc|piece|pieces|pkts|pkt|pack|packs|packet|packets|bunch|bunches|doz|dozen|dz)';
+    const regex = new RegExp(`^([\\d.]+)(?:\\s*(${unitPattern})\\b|\\s+)(.*)$`, 'i');
+
+    const match = input.match(regex);
+
+    if (match) {
+        const rawNum = parseFloat(match[1]);
+        const matchedUnit = (match[2] || '').toLowerCase();
+        const itemName = match[3].trim();
+
+        if (!isNaN(rawNum) && itemName.length > 0) {
+            name = itemName;
+
+            // Normalize weights and volumes
+            if (/^(g|gm|gms|gram|grams)$/.test(matchedUnit)) {
+                qty = parseFloat((rawNum / 1000).toFixed(3));
+                unit = 'kg';
+            } else if (/^(kg|kgs|kilo|kilos)$/.test(matchedUnit)) {
+                qty = parseFloat(rawNum.toFixed(2));
+                unit = 'kg';
+            } else if (/^(ml|milli|milliliters|millilitres)$/.test(matchedUnit)) {
+                qty = parseFloat((rawNum / 1000).toFixed(3));
+                unit = 'L';
+            } else if (/^(l|lt|ltr|liter|liters|litre|litres)$/.test(matchedUnit)) {
+                qty = parseFloat(rawNum.toFixed(2));
+                unit = 'L';
+            } else if (/^(lb|lbs|pound|pounds)$/.test(matchedUnit)) {
+                qty = parseFloat(rawNum.toFixed(2));
+                unit = 'lb';
+            } else if (/^(oz|ounce|ounces)$/.test(matchedUnit)) {
+                qty = parseFloat(rawNum.toFixed(2));
+                unit = 'oz';
+            } else if (/^(pcs|pc|piece|pieces)$/.test(matchedUnit)) {
+                qty = parseFloat(rawNum.toFixed(2));
+                unit = 'pcs';
+            } else if (/^(pkts|pkt|pack|packs|packet|packets)$/.test(matchedUnit)) {
+                qty = parseFloat(rawNum.toFixed(2));
+                unit = 'pack';
+            } else if (/^(bunch|bunches)$/.test(matchedUnit)) {
+                qty = parseFloat(rawNum.toFixed(2));
+                unit = 'bunch';
+            } else if (/^(doz|dozen|dz)$/.test(matchedUnit)) {
+                qty = parseFloat(rawNum.toFixed(2));
+                unit = 'doz';
+            } else {
+                qty = parseFloat(rawNum.toFixed(2));
+                unit = '';
+            }
+        }
+    }
+
+    const k = name.toLowerCase();
+    const ex = Object.keys(cart).find(c => c.toLowerCase() === k);
+
+    if (ex) {
+        cart[ex].qty = parseFloat(((cart[ex].qty || 0) + qty).toFixed(3));
+        if (unit) cart[ex].unit = unit;
+        cart[ex].checked = false;
+    } else {
+        cart[name] = { 
+            qty, 
+            unit,
+            custom: true, 
+            dealer: 'Any Store',
+            checked: false 
+        };
+    }
+
+    toast(`Added ${qty}${unit ? ' ' + unit : ''} × ${name}`);
+    updateBadge();
+    localStorage.setItem('grocery_cart', JSON.stringify(cart));
+    renderBasket();
+}
+
 
         /* ── expose modal functions globally ── */
         window.showConfirm = showConfirm;
