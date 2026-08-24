@@ -1,6 +1,6 @@
 {
-  "name": "Shoping List",
-  "short_name": "Shoping List",
+  "name": "Quick Shop",
+  "short_name": "Quick Shop",
   "description": "Lookup, add, and manage invoices with real-time sync.",
   "start_url": "./index.html",
   "display": "standalone",
