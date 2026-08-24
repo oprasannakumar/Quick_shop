@@ -1,8 +1,8 @@
 const CACHE_NAME = 'quickshop-v1';
 const ASSETS_TO_CACHE = [
-  '/Quick_shop/',
-  '/Quick_shop/index.html',
-  '/Quick_shop/manifest.json'
+  './',
+  './index.html',
+  './manifest.json'
 ];
 
 self.addEventListener('install', event => {
@@ -31,7 +31,7 @@ self.addEventListener('fetch', event => {
   if (event.request.url.includes('script.google.com')) return;
   event.respondWith(
     caches.match(event.request).then(cached => {
-      return cached || fetch(event.request).catch(() => caches.match('/Quick_shop/index.html'));
+      return cached || fetch(event.request).catch(() => caches.match('./index.html'));
     })
   );
 });
