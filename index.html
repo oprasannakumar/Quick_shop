@@ -4,13 +4,6 @@
 <meta charset="UTF-8">
 <title>QuickShop</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#c34b32">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="QuickShop">
-
-<!-- PWA Manifest Link -->
-<link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lora:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -107,6 +100,10 @@ h1, h2, h3, .serif-font {
 .search-inner input { flex: 1; height: 100%; border: none; background: transparent; font-size: 16px; font-weight: 500; font-family: inherit; color: var(--text-main); outline: none; }
 .search-inner input::placeholder { color: var(--text-muted); }
 .search-cmd { font-size: 12px; font-weight: 600; color: var(--text-main); background: var(--primary-soft); padding: 6px 10px; border-radius: 4px; }
+.sug-box { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--bg-card); border-radius: var(--radius-sm); max-height: 220px; overflow-y: auto; z-index: 20; box-shadow: var(--shadow-md); display: none; border: 1px solid var(--border); }
+.sug-box:not(:empty) { display: block; }
+.sug-item { padding: 14px 16px; font-size: 15px; font-weight: 500; cursor: pointer; border-bottom: 1px solid var(--border); }
+.sug-item:hover { background: var(--bg-input); }
 
 /* ── FILTERS ── */
 .filters-container { padding: 16px 20px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
@@ -295,6 +292,7 @@ h1, h2, h3, .serif-font {
         <span class="hdr-sub">Your Daily Market List</span>
       </div>
     </div>
+    <!-- Refresh Button moved to Shop header -->
     <button class="btn-refresh-hdr" onclick="autoCategorizeCatalog()" title="Refresh Catalog">↻</button>
   </header>
 
@@ -334,6 +332,8 @@ h1, h2, h3, .serif-font {
           <div class="manage-header-sub">Keep it fresh</div>
           <h2>Catalog <span>desk.</span></h2>
         </div>
+
+        <!-- Catalog card banner removed here -->
 
         <div class="type-row">
           <button class="type-btn on" id="typeBtnItem" onclick="showForm('item')">New item</button>
@@ -458,14 +458,6 @@ h1, h2, h3, .serif-font {
 </div>
 
 <script>
-/* ── PWA SERVICE WORKER SETUP ── */
-
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
-  });
-}
-
 /* ── CONSTANTS & VARS ── */
 const API_URL = "https://script.google.com/macros/s/AKfycbzRt_ad2rXgZNVO4_Nlumm8EAxN7jcG7gG1y0yKEec7WXnws68ygcAqrhCjRzcmdWzl/exec";
 const API_KEY = "9848o22338B!";
@@ -934,7 +926,88 @@ function handleDealerKeys(e, boxId, input) {
   else if (e.key === 'Enter') { e.preventDefault(); input.value = items[dealerIdx[boxId] ?? 0].textContent; box.innerHTML = ''; }
 }
 
-function suggestWithAI() { toast("AI suggestion processing..."); }
+async function suggestWithAI() {
+  const primaryName = document.getElementById('newItemName').value.trim();
+  if (!primaryName) {
+    toast("Please enter a primary name first!");
+    return;
+  }
+
+  // Check for saved Groq API key in localStorage, or prompt user if missing
+  let groqApiKey = localStorage.getItem('groq_api_key');
+  if (!groqApiKey) {
+    groqApiKey = prompt("Enter your Groq API Key (saved locally for future use):");
+    if (!groqApiKey) return;
+    localStorage.setItem('groq_api_key', groqApiKey.trim());
+  }
+
+  toast("AI is thinking... ✧");
+
+  const url = "https://api.groq.com/openai/v1/chat/completions";
+
+  const promptText = `You are a grocery assistant. Given the grocery item name "${primaryName}", provide:
+1. An English or alternative name (e.g. local name translated or common name). If it's already in English, provide a common synonym or leave it concise.
+2. Choose strictly ONE category from this exact list: Produce, Dairy & Eggs, Meat & Seafood, Pantry & Spices, Snacks & Beverages, Household, Other.
+
+Respond ONLY in valid JSON format with this exact structure:
+{"altName": "...", "category": "..."}`;
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${groqApiKey}`
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-oss-20b", // Verified active Groq model ID
+        messages: [{ role: "user", content: promptText }],
+        response_format: { type: "json_object" }
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.error) {
+      console.error(data.error);
+      if (data.error.code === 'invalid_api_key' || data.error.message?.includes('key')) {
+        localStorage.removeItem('groq_api_key'); // Clear bad key if invalid
+      }
+      toast("API Error: " + (data.error.message || "Request failed"));
+      return;
+    }
+
+    const resultText = data.choices?.[0]?.message?.content;
+    
+    if (resultText) {
+      const parsed = JSON.parse(resultText);
+      
+      // Autofill alternative name
+      if (parsed.altName) {
+        document.getElementById('newAltName').value = parsed.altName;
+      }
+      
+      // Autofill/Select category dropdown
+      if (parsed.category) {
+        const catSelect = document.getElementById('newItemCategory');
+        for (let option of catSelect.options) {
+          if (option.value.toLowerCase() === parsed.category.toLowerCase()) {
+            catSelect.value = option.value;
+            break;
+          }
+        }
+      }
+      
+      toast("Autofilled with AI! ✨");
+    } else {
+      toast("AI response failed.");
+    }
+  } catch (err) {
+    console.error(err);
+    toast("Network error connecting to Groq.");
+  }
+}
+
 function autoCategorizeCatalog() { toast("Catalog refreshed"); fetchData(); }
 
 </script>
