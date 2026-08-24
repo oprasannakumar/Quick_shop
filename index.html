@@ -290,7 +290,7 @@
             background: var(--accent-green-light);
             border: var(--border-width) solid var(--border);
             border-radius: 12px;
-            padding: 6px 28px 6px 12px;
+            padding: 10.5px 28px 10.5px 12px;
             box-shadow: 2px 2px 0px var(--border);
             font-size: 13px;
             font-weight: 700;
@@ -303,6 +303,7 @@
             justify-content: flex-end;
             min-width: 120px;
             transition: transform 0.1s;
+            
         }
         .store-select-trigger:active {
             transform: translate(2px, 2px);
@@ -2441,7 +2442,7 @@
                 {"altName": "...", "category": "..."}`;
             try {
                 const url =
-                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
+                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${geminiApiKey}`;
                 const response = await fetch(url, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -2500,7 +2501,7 @@
                         "Authorization": `Bearer ${groqApiKey}`
                     },
                     body: JSON.stringify({
-                        model: "llama-3.3-70b-versatile",
+                        model: "openai/gpt-oss-120b",
                         messages: [{ role: "user", content: promptText }],
                         response_format: { type: "json_object" }
                     })
