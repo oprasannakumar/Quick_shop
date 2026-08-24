@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <title>QuickShop</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#c34b32">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="QuickShop">
+
+<!-- PWA Manifest Link -->
+<link rel="manifest" id="pwa-manifest">
+
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lora:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -100,10 +108,6 @@ h1, h2, h3, .serif-font {
 .search-inner input { flex: 1; height: 100%; border: none; background: transparent; font-size: 16px; font-weight: 500; font-family: inherit; color: var(--text-main); outline: none; }
 .search-inner input::placeholder { color: var(--text-muted); }
 .search-cmd { font-size: 12px; font-weight: 600; color: var(--text-main); background: var(--primary-soft); padding: 6px 10px; border-radius: 4px; }
-.sug-box { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--bg-card); border-radius: var(--radius-sm); max-height: 220px; overflow-y: auto; z-index: 20; box-shadow: var(--shadow-md); display: none; border: 1px solid var(--border); }
-.sug-box:not(:empty) { display: block; }
-.sug-item { padding: 14px 16px; font-size: 15px; font-weight: 500; cursor: pointer; border-bottom: 1px solid var(--border); }
-.sug-item:hover { background: var(--bg-input); }
 
 /* ── FILTERS ── */
 .filters-container { padding: 16px 20px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
@@ -292,7 +296,6 @@ h1, h2, h3, .serif-font {
         <span class="hdr-sub">Your Daily Market List</span>
       </div>
     </div>
-    <!-- Refresh Button moved to Shop header -->
     <button class="btn-refresh-hdr" onclick="autoCategorizeCatalog()" title="Refresh Catalog">↻</button>
   </header>
 
@@ -332,8 +335,6 @@ h1, h2, h3, .serif-font {
           <div class="manage-header-sub">Keep it fresh</div>
           <h2>Catalog <span>desk.</span></h2>
         </div>
-
-        <!-- Catalog card banner removed here -->
 
         <div class="type-row">
           <button class="type-btn on" id="typeBtnItem" onclick="showForm('item')">New item</button>
@@ -458,6 +459,39 @@ h1, h2, h3, .serif-font {
 </div>
 
 <script>
+/* ── PWA SERVICE WORKER SETUP ── */
+const manifestData = {
+  "name": "QuickShop",
+  "short_name": "QuickShop",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f9f6f0",
+  "theme_color": "#c34b32",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%23285b43%22/><text y=%22.9em%22 font-size=%2280%22 x=%2210%22>🛍️</text></svg>",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+};
+document.getElementById('pwa-manifest').setAttribute('href', 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifestData)));
+
+if ('serviceWorker' in navigator) {
+  const swCode = `
+    self.addEventListener('install', e => e.waitUntil(self.skipWaiting()));
+    self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+    self.addEventListener('fetch', e => {
+      e.respondWith(
+        fetch(e.request).catch(() => caches.match(e.request))
+      );
+    });
+  `;
+  const blob = new Blob([swCode], { type: 'text/javascript' });
+  const swUrl = URL.createObjectURL(blob);
+  navigator.serviceWorker.register(swUrl).catch(() => {});
+}
+
 /* ── CONSTANTS & VARS ── */
 const API_URL = "https://script.google.com/macros/s/AKfycbzRt_ad2rXgZNVO4_Nlumm8EAxN7jcG7gG1y0yKEec7WXnws68ygcAqrhCjRzcmdWzl/exec";
 const API_KEY = "9848o22338B!";
