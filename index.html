@@ -1624,16 +1624,25 @@
 
                     <div id="basketItems"></div>
 
-                    <div class="cart-total-box" id="cartFooterBox" style="display:none">
-                        <div class="ct-lbl">Total Items</div>
-                        <div class="ct-val" id="cartTotalCount">0</div>
-                        <div class="cart-btns">
-                            <button class="c-btn c-btn-clear" onclick="clearCart()">Clear</button>
-                            <button class="c-btn c-btn-sync" onclick="sendToGoogleTasks()">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg> Sync tasks
-                            </button>
-                        </div>
-                    </div>
+       <div class="cart-total-box" id="cartFooterBox" style="display:none">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div>
+            <div class="ct-lbl">Total Items: <span id="cartTotalCount" style="color: var(--text-main);">0</span></div>
+            <div class="ct-lbl" style="margin-top: 6px;">Total Amount</div>
+            <div class="ct-val" id="cartTotalAmount">₹0.00</div>
+        </div>
+        <button class="c-btn" style="background: var(--accent-green); color: var(--text-main); height: auto; padding: 12px 24px; border-radius: var(--radius-pill);" onclick="payViaUPI()">
+            Pay UPI
+        </button>
+    </div>
+    <div class="cart-btns">
+        <button class="c-btn c-btn-clear" onclick="clearCart()">Clear</button>
+        <button class="c-btn c-btn-sync" onclick="sendToGoogleTasks()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg> Sync tasks
+        </button>
+    </div>
+</div>
+
 
                 </div>
             </div>
@@ -2148,7 +2157,17 @@ function renderBasket() {
     const box = document.getElementById('basketItems');
     const fBox = document.getElementById('cartFooterBox');
     const count = Object.keys(cart).length;
-    updateBadge();
+ let totalAmount = 0;
+Object.keys(cart).forEach(item => {
+    // Only calculate items that have a price (ignores custom text-only items)
+    if (cart[item].price) { 
+        totalAmount += (cart[item].price * cart[item].qty);
+    }
+});
+
+// Update the new amount text element
+document.getElementById('cartTotalAmount').textContent = `₹${totalAmount.toFixed(2)}`;
+  updateBadge();
     document.getElementById('cartTotalCount').textContent = count;
     if (count === 0) {
         box.innerHTML =
@@ -2532,6 +2551,31 @@ async function sendToGoogleTasks() {
             const valEl = document.getElementById('newItemCategoryVal');
             if (valEl) valEl.textContent = catVal;
         }
+// Add this new function to handle the payment logic
+function payViaUPI() {
+    let finalAmount = 0;
+    
+    // Recalculate to ensure we have the most accurate total
+    Object.keys(cart).forEach(item => {
+        if (cart[item].price) {
+            finalAmount += (cart[item].price * cart[item].qty);
+        }
+    });
+
+    if (finalAmount <= 0) {
+        toast("Your basket total is ₹0. Add priced items to pay.");
+        return;
+    }
+
+    // Format the amount to 2 decimal places
+    const am = finalAmount.toFixed(2);
+    
+    // Construct the UPI deep link
+    const upiLink = `upi://pay?pa=9603007016sbi@ybl&pn=Prasanna%20Kumar&am=${am}&cu=INR`;
+
+    // Trigger the intent on mobile devices
+    window.location.href = upiLink;
+}
 
         function autoCategorizeCatalog() { toast("Catalog refreshed");
             fetchData(); }
